@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: workflow-orchestrator
+  datasource:
+    url: jdbc:postgresql://localhost:5432/workflow_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+workflow:
+  task:
+    execution:
+      thread-pool-size: 10
+    retry:
+      max-attempts: 3
+      initial-interval: 1000
+      multiplier: 2.0
+  events:
+    enabled: true
