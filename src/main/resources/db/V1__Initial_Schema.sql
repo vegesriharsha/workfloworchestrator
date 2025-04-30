@@ -3,128 +3,171 @@
 
 -- Workflow Definitions
 CREATE TABLE workflow_definitions (
-                                      id BIGSERIAL PRIMARY KEY,
-                                      name VARCHAR(255) NOT NULL,
-                                      description TEXT,
-                                      version VARCHAR(50) NOT NULL,
-                                      created_at TIMESTAMP NOT NULL,
-                                      updated_at TIMESTAMP,
-                                      strategy_type VARCHAR(50) NOT NULL DEFAULT 'SEQUENTIAL',
-                                      UNIQUE (name, version)
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP,
+    strategy_type VARCHAR(50) NOT NULL DEFAULT 'SEQUENTIAL',
+    UNIQUE (name, version)
 );
 
 -- Task Definitions
 CREATE TABLE task_definitions (
-                                  id BIGSERIAL PRIMARY KEY,
-                                  workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
-                                  name VARCHAR(255) NOT NULL,
-                                  description TEXT,
-                                  type VARCHAR(100) NOT NULL,
-                                  execution_order INT NOT NULL,
-                                  retry_limit INT DEFAULT 3,
-                                  timeout_seconds INT DEFAULT 60,
-                                  execution_mode VARCHAR(50) NOT NULL DEFAULT 'API',
-                                  require_user_review BOOLEAN DEFAULT FALSE,
-                                  conditional_expression TEXT,
-                                  next_task_on_success BIGINT,
-                                  next_task_on_failure BIGINT
+    id BIGSERIAL PRIMARY KEY,
+    workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    execution_order INT NOT NULL,
+    retry_limit INT DEFAULT 3,
+    timeout_seconds INT DEFAULT 60,
+    execution_mode VARCHAR(50) NOT NULL DEFAULT 'API',
+    require_user_review BOOLEAN DEFAULT FALSE,
+    conditional_expression TEXT,
+    next_task_on_success BIGINT,
+    next_task_on_failure BIGINT,
+    execution_group VARCHAR(100) DEFAULT 'default',
+    parallel_execution BOOLEAN DEFAULT FALSE
+);
+
+-- Task Dependencies
+CREATE TABLE task_dependencies (
+    id BIGSERIAL PRIMARY KEY,
+    task_definition_id BIGINT NOT NULL REFERENCES task_definitions(id) ON DELETE CASCADE,
+    dependency_task_id BIGINT NOT NULL,
+    UNIQUE (task_definition_id, dependency_task_id)
 );
 
 -- Task Definition Configuration
 CREATE TABLE task_definition_config (
-                                        id BIGSERIAL PRIMARY KEY,
-                                        task_definition_id BIGINT NOT NULL REFERENCES task_definitions(id) ON DELETE CASCADE,
-                                        config_key VARCHAR(255) NOT NULL,
-                                        config_value TEXT,
-                                        UNIQUE (task_definition_id, config_key)
+    id BIGSERIAL PRIMARY KEY,
+    task_definition_id BIGINT NOT NULL REFERENCES task_definitions(id) ON DELETE CASCADE,
+    config_key VARCHAR(255) NOT NULL,
+    config_value TEXT,
+    UNIQUE (task_definition_id, config_key)
 );
 
 -- Workflow Executions
 CREATE TABLE workflow_executions (
-                                     id BIGSERIAL PRIMARY KEY,
-                                     workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id),
-                                     correlation_id VARCHAR(255) NOT NULL UNIQUE,
-                                     status VARCHAR(50) NOT NULL,
-                                     started_at TIMESTAMP,
-                                     completed_at TIMESTAMP,
-                                     current_task_index INT,
-                                     retry_count INT DEFAULT 0,
-                                     error_message TEXT
+    id BIGSERIAL PRIMARY KEY,
+    workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id),
+    correlation_id VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(50) NOT NULL,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    current_task_index INT,
+    retry_count INT DEFAULT 0,
+    error_message TEXT
 );
 
 -- Workflow Execution Variables
 CREATE TABLE workflow_execution_variables (
-                                              id BIGSERIAL PRIMARY KEY,
-                                              workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
-                                              variable_key VARCHAR(255) NOT NULL,
-                                              variable_value TEXT,
-                                              UNIQUE (workflow_execution_id, variable_key)
+    id BIGSERIAL PRIMARY KEY,
+    workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
+    variable_key VARCHAR(255) NOT NULL,
+    variable_value TEXT,
+    UNIQUE (workflow_execution_id, variable_key)
 );
 
 -- Task Executions
 CREATE TABLE task_executions (
-                                 id BIGSERIAL PRIMARY KEY,
-                                 workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
-                                 task_definition_id BIGINT NOT NULL REFERENCES task_definitions(id),
-                                 status VARCHAR(50) NOT NULL,
-                                 started_at TIMESTAMP,
-                                 completed_at TIMESTAMP,
-                                 execution_mode VARCHAR(50) NOT NULL,
-                                 retry_count INT DEFAULT 0,
-                                 next_retry_at TIMESTAMP,
-                                 error_message TEXT
+    id BIGSERIAL PRIMARY KEY,
+    workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
+    task_definition_id BIGINT NOT NULL REFERENCES task_definitions(id),
+    status VARCHAR(50) NOT NULL,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    execution_mode VARCHAR(50) NOT NULL,
+    retry_count INT DEFAULT 0,
+    next_retry_at TIMESTAMP,
+    error_message TEXT
 );
 
 -- Task Execution Inputs
 CREATE TABLE task_execution_inputs (
-                                       id BIGSERIAL PRIMARY KEY,
-                                       task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
-                                       input_key VARCHAR(255) NOT NULL,
-                                       input_value TEXT,
-                                       UNIQUE (task_execution_id, input_key)
+    id BIGSERIAL PRIMARY KEY,
+    task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
+    input_key VARCHAR(255) NOT NULL,
+    input_value TEXT,
+    UNIQUE (task_execution_id, input_key)
 );
 
 -- Task Execution Outputs
 CREATE TABLE task_execution_outputs (
-                                        id BIGSERIAL PRIMARY KEY,
-                                        task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
-                                        output_key VARCHAR(255) NOT NULL,
-                                        output_value TEXT,
-                                        UNIQUE (task_execution_id, output_key)
+    id BIGSERIAL PRIMARY KEY,
+    task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
+    output_key VARCHAR(255) NOT NULL,
+    output_value TEXT,
+    UNIQUE (task_execution_id, output_key)
 );
 
 -- User Review Points
 CREATE TABLE user_review_points (
-                                    id BIGSERIAL PRIMARY KEY,
-                                    workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
-                                    task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
-                                    created_at TIMESTAMP NOT NULL,
-                                    reviewed_at TIMESTAMP,
-                                    reviewer VARCHAR(255),
-                                    comment TEXT,
-                                    decision VARCHAR(50)
+    id BIGSERIAL PRIMARY KEY,
+    workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
+    task_execution_id BIGINT NOT NULL REFERENCES task_executions(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL,
+    reviewed_at TIMESTAMP,
+    reviewer VARCHAR(255),
+    comment TEXT,
+    decision VARCHAR(50),
+    replay_strategy VARCHAR(50),
+    previous_review_point_id BIGINT,
+    override_status VARCHAR(50)
+);
+
+-- Review Point Replay Tasks
+CREATE TABLE review_point_replay_tasks (
+    id BIGSERIAL PRIMARY KEY,
+    review_point_id BIGINT NOT NULL REFERENCES user_review_points(id) ON DELETE CASCADE,
+    task_id BIGINT NOT NULL
+);
+
+-- Review Audit Logs
+CREATE TABLE review_audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_execution_id BIGINT NOT NULL,
+    workflow_name VARCHAR(255) NOT NULL,
+    task_execution_id BIGINT NOT NULL,
+    task_name VARCHAR(255) NOT NULL,
+    review_point_id BIGINT NOT NULL,
+    reviewer VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    decision VARCHAR(50) NOT NULL,
+    replay_strategy VARCHAR(50),
+    override_status VARCHAR(50),
+    comment TEXT
+);
+
+-- Review Audit Replay Tasks
+CREATE TABLE review_audit_replay_tasks (
+    id BIGSERIAL PRIMARY KEY,
+    audit_log_id BIGINT NOT NULL REFERENCES review_audit_logs(id) ON DELETE CASCADE,
+    task_id BIGINT NOT NULL
 );
 
 -- Workflow Version History
 CREATE TABLE workflow_version_history (
-                                          id BIGSERIAL PRIMARY KEY,
-                                          workflow_name VARCHAR(255) NOT NULL,
-                                          version VARCHAR(50) NOT NULL,
-                                          created_at TIMESTAMP NOT NULL,
-                                          created_by VARCHAR(255),
-                                          change_description TEXT,
-                                          workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id),
-                                          UNIQUE (workflow_name, version)
+    id BIGSERIAL PRIMARY KEY,
+    workflow_name VARCHAR(255) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(255),
+    change_description TEXT,
+    workflow_definition_id BIGINT NOT NULL REFERENCES workflow_definitions(id),
+    UNIQUE (workflow_name, version)
 );
 
 -- Workflow Execution Audit Log
 CREATE TABLE workflow_execution_audit (
-                                          id BIGSERIAL PRIMARY KEY,
-                                          workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
-                                          event_type VARCHAR(100) NOT NULL,
-                                          event_time TIMESTAMP NOT NULL,
-                                          user_id VARCHAR(255),
-                                          details TEXT
+    id BIGSERIAL PRIMARY KEY,
+    workflow_execution_id BIGINT NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
+    event_type VARCHAR(100) NOT NULL,
+    event_time TIMESTAMP NOT NULL,
+    user_id VARCHAR(255),
+    details TEXT
 );
 
 -- Create indexes for performance
@@ -132,6 +175,7 @@ CREATE INDEX idx_workflow_def_name ON workflow_definitions(name);
 CREATE INDEX idx_workflow_def_name_version ON workflow_definitions(name, version);
 CREATE INDEX idx_task_def_workflow ON task_definitions(workflow_definition_id);
 CREATE INDEX idx_task_def_order ON task_definitions(workflow_definition_id, execution_order);
+CREATE INDEX idx_task_dependencies ON task_dependencies(task_definition_id);
 CREATE INDEX idx_workflow_exec_status ON workflow_executions(status);
 CREATE INDEX idx_workflow_exec_correlation ON workflow_executions(correlation_id);
 CREATE INDEX idx_workflow_exec_def ON workflow_executions(workflow_definition_id);
@@ -140,6 +184,8 @@ CREATE INDEX idx_task_exec_status ON task_executions(status);
 CREATE INDEX idx_task_exec_retry ON task_executions(next_retry_at) WHERE status = 'AWAITING_RETRY';
 CREATE INDEX idx_review_points_workflow ON user_review_points(workflow_execution_id);
 CREATE INDEX idx_review_points_task ON user_review_points(task_execution_id);
+CREATE INDEX idx_review_audit_workflow ON review_audit_logs(workflow_execution_id);
+CREATE INDEX idx_review_audit_task ON review_audit_logs(task_execution_id);
 CREATE INDEX idx_workflow_version_history_name ON workflow_version_history(workflow_name);
 CREATE INDEX idx_workflow_audit_execution ON workflow_execution_audit(workflow_execution_id);
 
