@@ -1,11 +1,13 @@
 package com.example.workfloworchestrator.service;
 
-import com.example.workfloworchestrator.engine.WorkflowEngine;
+import com.example.workfloworchestrator.engine.WorkflowExecutor;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.example.workfloworchestrator.exception.WorkflowException;
 import com.example.workfloworchestrator.model.*;
 import com.example.workfloworchestrator.repository.WorkflowExecutionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +24,16 @@ public class WorkflowExecutionService {
 
     private final WorkflowService workflowService;
     private final WorkflowExecutionRepository workflowExecutionRepository;
-    private final WorkflowEngine workflowEngine;
     private final EventPublisherService eventPublisherService;
+    
+    @Autowired
+    private WorkflowExecutor workflowExecutor;
+    
+    @PostConstruct
+    public void init() {
+        log.info("WorkflowExecutionService initialized with workflowExecutor: {}", 
+                workflowExecutor != null ? workflowExecutor.getClass().getSimpleName() : "null");
+    }
 
     @Transactional
     public WorkflowExecution startWorkflow(String workflowName, String version, Map<String, String> variables) {
@@ -33,7 +43,7 @@ public class WorkflowExecutionService {
         WorkflowExecution execution = createWorkflowExecution(workflowDefinition, variables);
 
         // Start the workflow
-        workflowEngine.executeWorkflow(execution.getId());
+        workflowExecutor.executeWorkflow(execution.getId());
 
         return execution;
     }
@@ -115,7 +125,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(execution);
 
             // Continue execution
-            workflowEngine.executeWorkflow(id);
+            workflowExecutor.executeWorkflow(id);
 
             eventPublisherService.publishWorkflowResumedEvent(execution);
         }
@@ -151,7 +161,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(execution);
 
             // Continue execution from failed task
-            workflowEngine.executeWorkflow(id);
+            workflowExecutor.executeWorkflow(id);
 
             eventPublisherService.publishWorkflowRetryEvent(execution);
         }
@@ -193,7 +203,7 @@ public class WorkflowExecutionService {
 
     @Transactional
     public WorkflowExecution retryWorkflowExecutionSubset(Long workflowExecutionId, List<Long> taskIds) {
-        WorkflowExecution workflowExecution = getWorkflowExecution(workflowExecutionId);
+        var workflowExecution = getWorkflowExecution(workflowExecutionId);
 
         if (workflowExecution.getStatus() == WorkflowStatus.FAILED ||
                 workflowExecution.getStatus() == WorkflowStatus.PAUSED) {
@@ -203,7 +213,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(workflowExecution);
 
             // Execute subset of tasks
-            workflowEngine.executeTaskSubset(workflowExecutionId, taskIds);
+            workflowExecutor.executeTaskSubset(workflowExecutionId, taskIds);
 
             eventPublisherService.publishWorkflowRetryEvent(workflowExecution);
         }
@@ -281,10 +291,10 @@ public class WorkflowExecutionService {
      */
     @Transactional(readOnly = true)
     public CompletableFuture<WorkflowExecution> waitForWorkflowCompletion(Long workflowExecutionId, int timeoutSeconds) {
-        CompletableFuture<WorkflowExecution> resultFuture = new CompletableFuture<>();
+        var resultFuture = new CompletableFuture<WorkflowExecution>();
 
-        // Start a thread to poll the workflow status
-        Thread pollingThread = new Thread(() -> {
+        // Use a virtual thread for polling (Java 21 feature)
+        Thread.ofVirtual().start(() -> {
             long startTime = System.currentTimeMillis();
             long timeoutMillis = timeoutSeconds * 1000L;
 
@@ -298,8 +308,8 @@ public class WorkflowExecutionService {
                     }
 
                     // Get the current workflow status
-                    WorkflowExecution execution = getWorkflowExecution(workflowExecutionId);
-                    WorkflowStatus status = execution.getStatus();
+                    var execution = getWorkflowExecution(workflowExecutionId);
+                    var status = execution.getStatus();
 
                     // Check if the workflow has completed or failed
                     if (status == WorkflowStatus.COMPLETED ||
@@ -316,9 +326,6 @@ public class WorkflowExecutionService {
                 resultFuture.completeExceptionally(e);
             }
         });
-
-        pollingThread.setDaemon(true);
-        pollingThread.start();
 
         return resultFuture;
     }

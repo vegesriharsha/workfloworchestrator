@@ -149,7 +149,7 @@ public class SequentialExecutionStrategy implements ExecutionStrategy {
         }
 
         // Get current task to execute
-        TaskDefinition taskDefinition = tasks.get(startIndex);
+        var taskDefinition = tasks.get(startIndex);
 
         // Check if conditions for this task are met
         if (!evaluateCondition(taskDefinition, workflowExecution)) {
@@ -160,10 +160,10 @@ public class SequentialExecutionStrategy implements ExecutionStrategy {
         }
 
         // Prepare inputs from workflow variables
-        Map<String, String> inputs = new HashMap<>(workflowExecution.getVariables());
+        var inputs = new HashMap<>(workflowExecution.getVariables());
 
         // Create task execution
-        TaskExecution taskExecution = taskExecutionService.createTaskExecution(
+        var taskExecution = taskExecutionService.createTaskExecution(
                 workflowExecution, taskDefinition, inputs);
 
         // Update workflow's current task index
@@ -310,23 +310,21 @@ public class SequentialExecutionStrategy implements ExecutionStrategy {
     private boolean evaluateSimpleExpression(String expression, Map<String, String> variables) {
         // Handle variable references like ${task1.output.success}
         if (expression.startsWith("${") && expression.endsWith("}")) {
-            String key = expression.substring(2, expression.length() - 1);
-            String value = variables.get(key);
+            var key = expression.substring(2, expression.length() - 1);
+            var value = variables.get(key);
             return "true".equalsIgnoreCase(value);
         }
 
         // Handle AND expressions
         if (expression.contains("&&")) {
-            String[] parts = expression.split("&&");
-            return Arrays.stream(parts)
+            return Arrays.stream(expression.split("&&"))
                     .map(String::trim)
                     .allMatch(part -> evaluateSimpleExpression(part, variables));
         }
 
         // Handle OR expressions
         if (expression.contains("||")) {
-            String[] parts = expression.split("\\|\\|");
-            return Arrays.stream(parts)
+            return Arrays.stream(expression.split("\\|\\|"))
                     .map(String::trim)
                     .anyMatch(part -> evaluateSimpleExpression(part, variables));
         }
