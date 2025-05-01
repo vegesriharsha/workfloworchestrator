@@ -7,7 +7,6 @@ import com.example.workfloworchestrator.model.UserReviewPoint;
 import com.example.workfloworchestrator.model.WorkflowExecution;
 import com.example.workfloworchestrator.service.TaskExecutionService;
 import com.example.workfloworchestrator.service.UserReviewService;
-import com.example.workfloworchestrator.service.WorkflowExecutionService;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,7 +28,6 @@ import java.util.List;
 public class UserReviewController {
 
     private final UserReviewService userReviewService;
-    private final WorkflowExecutionService workflowExecutionService;
     private final TaskExecutionService taskExecutionService;
 
     /**

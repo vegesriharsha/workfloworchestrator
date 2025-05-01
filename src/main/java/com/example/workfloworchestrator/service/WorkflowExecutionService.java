@@ -1,38 +1,61 @@
 package com.example.workfloworchestrator.service;
 
-import com.example.workfloworchestrator.engine.WorkflowExecutor;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.workfloworchestrator.engine.WorkflowEngine;
 import com.example.workfloworchestrator.exception.WorkflowException;
-import com.example.workfloworchestrator.model.*;
+import com.example.workfloworchestrator.model.WorkflowDefinition;
+import com.example.workfloworchestrator.model.WorkflowExecution;
+import com.example.workfloworchestrator.model.WorkflowStatus;
 import com.example.workfloworchestrator.repository.WorkflowExecutionRepository;
-import lombok.RequiredArgsConstructor;
+import com.example.workfloworchestrator.service.api.WorkflowStatusUpdater;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
-public class WorkflowExecutionService {
+public class WorkflowExecutionService implements WorkflowStatusUpdater {
 
     private final WorkflowService workflowService;
     private final WorkflowExecutionRepository workflowExecutionRepository;
     private final EventPublisherService eventPublisherService;
-    
+    private WorkflowEngine workflowEngine;
+
+    /**
+     * Constructor with fields except WorkflowEngine
+     *
+     * @param workflowService the workflow service
+     * @param workflowExecutionRepository the repository
+     * @param eventPublisherService the event publisher
+     */
     @Autowired
-    private WorkflowExecutor workflowExecutor;
-    
-    @PostConstruct
-    public void init() {
-        log.info("WorkflowExecutionService initialized with workflowExecutor: {}", 
-                workflowExecutor != null ? workflowExecutor.getClass().getSimpleName() : "null");
+    public WorkflowExecutionService(
+            WorkflowService workflowService,
+            WorkflowExecutionRepository workflowExecutionRepository,
+            EventPublisherService eventPublisherService) {
+        this.workflowService = workflowService;
+        this.workflowExecutionRepository = workflowExecutionRepository;
+        this.eventPublisherService = eventPublisherService;
+    }
+
+    /**
+     * Setter for WorkflowEngine - used to break circular dependency
+     *
+     * @param workflowEngine the workflow engine
+     */
+    @Autowired
+    public void setWorkflowEngine(@Lazy WorkflowEngine workflowEngine) {
+        this.workflowEngine = workflowEngine;
     }
 
     @Transactional
@@ -43,7 +66,7 @@ public class WorkflowExecutionService {
         WorkflowExecution execution = createWorkflowExecution(workflowDefinition, variables);
 
         // Start the workflow
-        workflowExecutor.executeWorkflow(execution.getId());
+        workflowEngine.executeWorkflow(execution.getId());
 
         return execution;
     }
@@ -75,6 +98,7 @@ public class WorkflowExecutionService {
         }
     }
 
+    @Override
     @Transactional
     public WorkflowExecution getWorkflowExecution(Long id) {
         return workflowExecutionRepository.findById(id)
@@ -87,6 +111,7 @@ public class WorkflowExecutionService {
                 .orElseThrow(() -> new WorkflowException("Workflow execution not found with correlationId: " + correlationId));
     }
 
+    @Override
     @Transactional
     public WorkflowExecution updateWorkflowExecutionStatus(Long id, WorkflowStatus status) {
         WorkflowExecution execution = getWorkflowExecution(id);
@@ -125,7 +150,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(execution);
 
             // Continue execution
-            workflowExecutor.executeWorkflow(id);
+            workflowEngine.executeWorkflow(id);
 
             eventPublisherService.publishWorkflowResumedEvent(execution);
         }
@@ -161,7 +186,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(execution);
 
             // Continue execution from failed task
-            workflowExecutor.executeWorkflow(id);
+            workflowEngine.executeWorkflow(id);
 
             eventPublisherService.publishWorkflowRetryEvent(execution);
         }
@@ -179,6 +204,7 @@ public class WorkflowExecutionService {
         return workflowExecutionRepository.findStuckExecutions(WorkflowStatus.RUNNING, before);
     }
 
+    @Override
     @Transactional
     public WorkflowExecution save(WorkflowExecution workflowExecution) {
         return workflowExecutionRepository.save(workflowExecution);
@@ -213,7 +239,7 @@ public class WorkflowExecutionService {
             workflowExecutionRepository.save(workflowExecution);
 
             // Execute subset of tasks
-            workflowExecutor.executeTaskSubset(workflowExecutionId, taskIds);
+            workflowEngine.executeTaskSubset(workflowExecutionId, taskIds);
 
             eventPublisherService.publishWorkflowRetryEvent(workflowExecution);
         }

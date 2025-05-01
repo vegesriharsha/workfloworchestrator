@@ -290,12 +290,12 @@ public class WorkflowOrchestratorIntegrationTest {
         Long reviewPointId = waitingExecution.getReviewPoints().get(0).getId();
         
         // 6. Submit a review approval
-        UserReviewController.ReviewRequest reviewRequest = new UserReviewController.ReviewRequest();
+        UserReviewController.EnhancedReviewRequest reviewRequest = new UserReviewController.EnhancedReviewRequest();
         reviewRequest.setDecision(UserReviewPoint.ReviewDecision.APPROVE);
         reviewRequest.setReviewer("test-user");
         reviewRequest.setComment("Approved in automated test");
         
-        HttpEntity<UserReviewController.ReviewRequest> reviewHttpRequest = 
+        HttpEntity<UserReviewController.EnhancedReviewRequest> reviewHttpRequest =
                 new HttpEntity<>(reviewRequest, headers);
         
         ResponseEntity<WorkflowExecution> reviewResponse = restTemplate.exchange(

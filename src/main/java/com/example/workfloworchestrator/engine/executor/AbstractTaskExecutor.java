@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Abstract base class for task executors
@@ -14,6 +16,8 @@ import java.util.Map;
  */
 @Slf4j
 public abstract class AbstractTaskExecutor implements TaskExecutor {
+
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
     /**
      * Concrete execute method implementing the template pattern
@@ -139,6 +143,43 @@ public abstract class AbstractTaskExecutor implements TaskExecutor {
         }
 
         return processedConfig;
+    }
+
+    /**
+     * Process variables in a string, replacing ${varName} with values from context
+     *
+     * @param input the input string
+     * @param context the execution context
+     * @return the processed string
+     */
+    public String processVariables(String input, ExecutionContext context) {
+        if (input == null || input.isEmpty() || context == null) {
+            return input;
+        }
+
+        // Create a copy of the input string that we'll modify
+        String result = input;
+
+        // Use regex to find all variable placeholders in the format ${varName}
+        Matcher matcher = VARIABLE_PATTERN.matcher(input);
+
+        // For each variable placeholder found
+        while (matcher.find()) {
+            // Extract the variable name (without the ${} delimiters)
+            String variableName = matcher.group(1);
+
+            // Try to get the variable value from the context
+            Object variableValue = context.getVariable(variableName);
+
+            // If the variable exists in the context
+            if (variableValue != null) {
+                // Replace the placeholder with the variable value
+                String placeholder = "${" + variableName + "}";
+                result = result.replace(placeholder, variableValue.toString());
+            }
+        }
+
+        return result;
     }
 
     /**

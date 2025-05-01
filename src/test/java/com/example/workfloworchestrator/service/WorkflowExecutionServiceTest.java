@@ -17,13 +17,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -819,14 +821,5 @@ public class WorkflowExecutionServiceTest {
         assertNotNull(result);
         assertEquals(WorkflowStatus.COMPLETED, result.getStatus());
         verify(workflowExecutionRepository, atLeast(2)).findById(id);
-    }
-    
-    @Test
-    void init_shouldLogInitialization() {
-        // Re-initialize service to trigger @PostConstruct
-        workflowExecutionService.init();
-        
-        // Not easily testable, but ensures code coverage
-        // We're not asserting anything as it just logs
     }
 }

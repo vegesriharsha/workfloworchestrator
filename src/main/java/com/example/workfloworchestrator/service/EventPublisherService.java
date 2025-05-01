@@ -18,7 +18,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EventPublisherService {
+public class EventPublisherService implements EventPublisherContextHolder {
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -27,6 +27,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that started
      */
+    @Override
     public void publishWorkflowStartedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.STARTED);
         publishEvent(event);
@@ -37,6 +38,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that completed
      */
+    @Override
     public void publishWorkflowCompletedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.COMPLETED);
         publishEvent(event);
@@ -47,6 +49,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that failed
      */
+    @Override
     public void publishWorkflowFailedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.FAILED);
         event.setErrorMessage(workflowExecution.getErrorMessage());
@@ -58,6 +61,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that was cancelled
      */
+    @Override
     public void publishWorkflowCancelledEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.CANCELLED);
         publishEvent(event);
@@ -68,6 +72,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that was paused
      */
+    @Override
     public void publishWorkflowPausedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.PAUSED);
         publishEvent(event);
@@ -78,6 +83,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that was resumed
      */
+    @Override
     public void publishWorkflowResumedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.RESUMED);
         publishEvent(event);
@@ -88,6 +94,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that changed status
      */
+    @Override
     public void publishWorkflowStatusChangedEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.STATUS_CHANGED);
         event.addProperty("status", workflowExecution.getStatus().toString());
@@ -99,6 +106,7 @@ public class EventPublisherService {
      *
      * @param workflowExecution The workflow execution that is being retried
      */
+    @Override
     public void publishWorkflowRetryEvent(WorkflowExecution workflowExecution) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.RETRY);
         event.addProperty("retryCount", String.valueOf(workflowExecution.getRetryCount()));
@@ -110,6 +118,7 @@ public class EventPublisherService {
      *
      * @param taskExecution The task execution that started
      */
+    @Override
     public void publishTaskStartedEvent(TaskExecution taskExecution) {
         TaskEvent event = createTaskEvent(taskExecution, TaskEventType.STARTED);
         publishEvent(event);
@@ -120,6 +129,7 @@ public class EventPublisherService {
      *
      * @param taskExecution The task execution that completed
      */
+    @Override
     public void publishTaskCompletedEvent(TaskExecution taskExecution) {
         TaskEvent event = createTaskEvent(taskExecution, TaskEventType.COMPLETED);
         publishEvent(event);
@@ -130,6 +140,7 @@ public class EventPublisherService {
      *
      * @param taskExecution The task execution that failed
      */
+    @Override
     public void publishTaskFailedEvent(TaskExecution taskExecution) {
         TaskEvent event = createTaskEvent(taskExecution, TaskEventType.FAILED);
         event.setErrorMessage(taskExecution.getErrorMessage());
@@ -142,6 +153,7 @@ public class EventPublisherService {
      * @param workflowExecution The workflow execution
      * @param reviewPoint The review point
      */
+    @Override
     public void publishUserReviewRequestedEvent(WorkflowExecution workflowExecution, UserReviewPoint reviewPoint) {
         UserReviewEvent event = createUserReviewEvent(workflowExecution, reviewPoint, UserReviewEventType.REQUESTED);
         publishEvent(event);
@@ -153,6 +165,7 @@ public class EventPublisherService {
      * @param workflowExecution The workflow execution
      * @param reviewPoint The review point
      */
+    @Override
     public void publishUserReviewCompletedEvent(WorkflowExecution workflowExecution, UserReviewPoint reviewPoint) {
         UserReviewEvent event = createUserReviewEvent(workflowExecution, reviewPoint, UserReviewEventType.COMPLETED);
 
@@ -178,6 +191,7 @@ public class EventPublisherService {
      * @param eventType The event type
      * @return The created event
      */
+    @Override
     public WorkflowEvent createWorkflowEvent(WorkflowExecution workflowExecution, WorkflowEventType eventType) {
         WorkflowEvent event = new WorkflowEvent(this);
         event.setEventType(eventType);
@@ -196,6 +210,7 @@ public class EventPublisherService {
      * @param eventType The event type
      * @return The created event
      */
+    @Override
     public TaskEvent createTaskEvent(TaskExecution taskExecution, TaskEventType eventType) {
         TaskEvent event = new TaskEvent(this);
         event.setEventType(eventType);
@@ -220,6 +235,7 @@ public class EventPublisherService {
      * @param eventType The event type
      * @return The created event
      */
+    @Override
     public UserReviewEvent createUserReviewEvent(WorkflowExecution workflowExecution,
                                                  UserReviewPoint reviewPoint,
                                                  UserReviewEventType eventType) {
@@ -239,6 +255,7 @@ public class EventPublisherService {
      *
      * @param event The event to publish
      */
+    @Override
     public void publishEvent(BaseEvent event) {
         log.debug("Publishing event: {}", event.getEventTypeString());
         eventPublisher.publishEvent(event);
@@ -251,6 +268,7 @@ public class EventPublisherService {
      * @param eventType The event type
      * @return The created event
      */
+    @Override
     public TaskEvent createTaskEventById(Long taskExecutionId, TaskEventType eventType) {
         // In a real implementation, this would look up the task execution
         TaskEvent event = new TaskEvent(this);
@@ -266,6 +284,7 @@ public class EventPublisherService {
      * @param eventType The event type
      * @return The created event
      */
+    @Override
     public WorkflowEvent createWorkflowEventById(Long workflowExecutionId, WorkflowEventType eventType) {
         // In a real implementation, this would look up the workflow execution
         WorkflowEvent event = new WorkflowEvent(this);
@@ -281,6 +300,7 @@ public class EventPublisherService {
      * @param replayStrategy The replay strategy
      * @return The created event
      */
+    @Override
     public TaskEvent createTaskReplayEvent(TaskExecution taskExecution, UserReviewPoint.ReplayStrategy replayStrategy) {
         TaskEvent event = createTaskEvent(taskExecution, TaskEventType.REPLAY);
         event.addProperty("replayStrategy", replayStrategy.toString());
@@ -296,6 +316,7 @@ public class EventPublisherService {
      * @param overriddenBy The user who performed the override
      * @return The created event
      */
+    @Override
     public TaskEvent createTaskOverrideEvent(TaskExecution taskExecution,
                                              TaskStatus originalStatus,
                                              TaskStatus newStatus,
@@ -314,6 +335,7 @@ public class EventPublisherService {
      * @param replayTaskIds The IDs of tasks being replayed
      * @return The created event
      */
+    @Override
     public WorkflowEvent createWorkflowReplayEvent(WorkflowExecution workflowExecution, List<Long> replayTaskIds) {
         WorkflowEvent event = createWorkflowEvent(workflowExecution, WorkflowEventType.REPLAY);
         event.addProperty("replayTaskCount", String.valueOf(replayTaskIds.size()));
